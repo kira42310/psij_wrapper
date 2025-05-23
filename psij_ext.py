@@ -1,5 +1,5 @@
 import sys
-sys.path.append(f'/vol0206/data/ra010014/u13266/workflow/psij/psij-python_pjsub/src')
+# sys.path.append(f'/vol0206/data/ra010014/u13266/workflow/psij/psij-python_pjsub/src')
 
 import cloudpickle
 import pickle
@@ -12,8 +12,9 @@ from typing import Optional, Union, Dict
 
 class psij_ext:
 
-    def __init__( self, instance, work_directory = None ):
+    def __init__( self, instance, work_directory = None, keep_files: Optional[bool] = False ):
         self.job_executor = psij.JobExecutor.get_instance( instance )
+        self.job_executor.config.keep_files = keep_files
 
         # ToDo: Need to check the work_directory exist before using it
         if work_directory is not None:
@@ -47,8 +48,8 @@ with open( "{result_path}", 'wb' ) as res_file:
     def config_spec( 
         self, 
         # work_directory,
-        arguments: list[str],
         executable: str,
+        arguments: list[str] = None,
         directory: Union[str, Path, None] = None,
         name: Optional[str] = None,
         inherit_environment: bool = True,
@@ -80,7 +81,8 @@ with open( "{result_path}", 'wb' ) as res_file:
 
         spec.executable = executable
 
-        spec.arguments = arguments
+        if arguments != None:
+            spec.arguments = arguments
 
         if directory != None: 
             spec.directory = directory
@@ -153,30 +155,36 @@ with open( "{result_path}", 'wb' ) as res_file:
         #     'pjsub_others.a':'-j',
         #     'pjsub_env.PJM_LLIO_GFSCACHE':'/vol0003:/vol0004:/vol0002'}
 
+        print( arguments )
+        print( spec.arguments )
+
         return spec
 
     def submit( 
         self, 
         executable: str, 
-        arguments: List[str], 
+        arguments: list[str], 
         job_spec: Dict[str, object] 
     ) -> psij.Job:
         job = psij.Job()
-        job.spec = self.config_spec( executable = executable, arguments = arguments, **job_spec )
+        job.spec = self.config_spec( **job_spec )
         self.job_executor.submit( job )
         return job
 
     def submit_python( 
         self, 
         func_obj, 
-        executable: str = 'python',
         job_spec: Dict[str, object], 
+        executable: str = 'python',
         args: list[object] = [], 
         kwargs: Dict[str, object] = {},
         worker_mount_directory: Optional[str] = None
     ) -> psij.Job:
 
         work_directory = self.work_directory
+
+        job = psij.Job()
+        # job.spec = self.config_spec( work_directory, [ f'{work_directory}/{job.id}.py' ], **job_spec )
 
         filename = f'{work_directory}/{job.id}.pkl'
         execute_path = f'{work_directory}/{job.id}.py'
@@ -191,11 +199,9 @@ with open( "{result_path}", 'wb' ) as res_file:
         #     func_obj_path = f'/vol0003/mdt0{func_obj_path}'
         #     result_path = f'/vol0003/mdt0{result_path}'
 
-        job = psij.Job()
-        job.spec = self.config_spec( executable = executable, arguments = [ execute_path ], **job_spec )
-        # job.spec = self.config_spec( work_directory, [ f'{work_directory}/{job.id}.py' ], **job_spec )
-
         # job = self.make_job( work_directory )
+
+        job.spec = self.config_spec( arguments = [ execute_path ], **job_spec )
 
         if Path( execute_path ).is_file() or Path( func_obj_path ).is_file:
             Path( execute_path ).unlink( missing_ok=True )
@@ -206,7 +212,7 @@ with open( "{result_path}", 'wb' ) as res_file:
         with open( execute_path, 'w' ) as f:
             f.write( self.python_execute_script( func_obj_path, result_path ) )
 
-        self.job_ex.submit( job )
+        self.job_executor.submit( job )
 
         return job
 
