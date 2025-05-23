@@ -155,8 +155,8 @@ with open( "{result_path}", 'wb' ) as res_file:
         #     'pjsub_others.a':'-j',
         #     'pjsub_env.PJM_LLIO_GFSCACHE':'/vol0003:/vol0004:/vol0002'}
 
-        print( arguments )
-        print( spec.arguments )
+        # print( arguments )
+        # print( spec.arguments )
 
         return spec
 
@@ -218,7 +218,7 @@ with open( "{result_path}", 'wb' ) as res_file:
 
     def wait_for_results( self, job ):
         status = job.wait()
-        print( status )
+        # print( status )
         results = self.load_results( job.id )
         return results
 
