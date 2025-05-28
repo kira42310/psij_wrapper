@@ -1,10 +1,6 @@
-import sys
-# sys.path.append(f'/vol0206/data/ra010014/u13266/workflow/psij/psij-python_pjsub/src')
-
 import cloudpickle
 import pickle
 import psij
-# import shutil
 
 from pathlib import Path
 from datetime import timedelta
@@ -12,20 +8,38 @@ from typing import Optional, Union, Dict
 
 class psij_ext:
 
-    def __init__( self, instance, work_directory = None, keep_files: Optional[bool] = False ):
+    # The Init function for the PSI/J wrapper, get the PSI/J instance and set up job executor parameters
+    # Parameters:
+    # - instance: str, The name of the job scheduler
+    # - work_directory, Path, Optional, The location that job submission files write
+    # - keep_files, bool, Optional, The parameter to keep the files after the job is finished
+    # Return: No return
+    def __init__( self, instance, work_directory: Optional[Path] = None, keep_files: Optional[bool] = False ):
         self.job_executor = psij.JobExecutor.get_instance( instance )
         self.job_executor.config.keep_files = keep_files
 
-        # ToDo: Need to check the work_directory exist before using it
+        # ToDo: Need to check the work_directory exist before using it, what if the PSI/J already doing it?
         if work_directory is not None:
             self.job_executor.work_directory = work_directory
         self.work_directory = self.job_executor.work_directory
 
-    def python_serialize_function_and_args( self, filename, func_obj, args = [], kwargs = {} ) -> None:
+    # Serialize the Python function and parameters to file
+    # parameters:
+    # - filename, Path, path and filename for the serialize python data
+    # - func_obj, obj, Python function object
+    # - args, list, Optional, Parameters for the python function object(For non key-value type)
+    # - kwargs, dict, Optional, Parameters for the python function object(For key-value type)
+    # Return: No return
+    def python_serialize_function_and_args( self, filename: Path, func_obj, args: list = [], kwargs: Dict = {} ) -> None:
         with open( filename, 'wb' ) as obj_file:
             cloudpickle.dump( ( func_obj, args, kwargs ), obj_file )
 
-    def python_execute_script( self, func_obj_path, result_path ) -> str:
+    # Getter function for running Python serialize function
+    # parameters:
+    # - func_obj_path, str, Python serialize data file for execute in this raw source codee
+    # - result_path, str, Output location
+    # Return: str, python raw source code
+    def python_execute_script( self, func_obj_path: str, result_path: str ) -> str:
         return f"""
 import pickle
 import sys
@@ -45,6 +59,11 @@ with open( "{result_path}", 'wb' ) as res_file:
     pickle.dump( (results, exception), res_file)
 """
 
+    # This function will create the PSI/J specification object and set the job schedulor parameters
+    # parameters:
+    # - executable, str, execution/binary/command
+    # - Others optional parameters, please read at the PSI/J documentation
+    # Return: PSI/J job specification object
     def config_spec( 
         self, 
         # work_directory,
@@ -74,10 +93,6 @@ with open( "{result_path}", 'wb' ) as res_file:
         custom_attributes: Optional[ Dict[str,object] ] = None
     ) -> psij.JobSpec:
         spec = psij.JobSpec()
-
-        # spec.executable = '/home/users/s.pornmaneerattanatri/.pyenv/versions/workflow_dev/bin/python'
-
-        # spec.arguments = [ f'{work_directory}/{job.id}.py' ]
 
         spec.executable = executable
 
@@ -150,20 +165,16 @@ with open( "{result_path}", 'wb' ) as res_file:
         if custom_attributes != None:
             spec.attributes.custom_attributes = custom_attributes
 
-        # spec.attributes.custom_attributes = {'node_shape.node': '1',
-        #     'group.a':'ra010014',
-        #     'pjsub_others.a':'-j',
-        #     'pjsub_env.PJM_LLIO_GFSCACHE':'/vol0003:/vol0004:/vol0002'}
-
-        # print( arguments )
-        # print( spec.arguments )
-
         return spec
 
+    # This function will submit the job to the job scheduler
+    # parameters:
+    # - executation, str, executable/binary/command
+    # - job_spec, Dict[ key, value ], Parameters for configure job specification
+    # Return: PSI/J job object
     def submit( 
         self, 
         executable: str, 
-        arguments: list[str], 
         job_spec: Dict[str, object] 
     ) -> psij.Job:
         job = psij.Job()
@@ -171,6 +182,15 @@ with open( "{result_path}", 'wb' ) as res_file:
         self.job_executor.submit( job )
         return job
 
+    # This function is for submitting the serialize python function and execute with job scheduler
+    # parameters:
+    # - func_obj, object, Python function object
+    # - job_spec, Dict[ key, value ], Parameters for configure job specification
+    # - executable, str, executable/binary/command
+    # - args, list, Optional, Parameters for the python function object(For non key-value type)
+    # - kwargs, dict, Optional, Parameters for the python function object(For key-value type) 
+    # - worker_mount_directory, Path, Optinoal, In case NFS on login node and compute node have different mounting point
+    # Reutrn: PSI/J job object
     def submit_python( 
         self, 
         func_obj, 
@@ -178,13 +198,12 @@ with open( "{result_path}", 'wb' ) as res_file:
         executable: str = 'python',
         args: list[object] = [], 
         kwargs: Dict[str, object] = {},
-        worker_mount_directory: Optional[str] = None
+        worker_mount_directory: Union[str, Path, None] = None 
     ) -> psij.Job:
 
         work_directory = self.work_directory
 
         job = psij.Job()
-        # job.spec = self.config_spec( work_directory, [ f'{work_directory}/{job.id}.py' ], **job_spec )
 
         filename = f'{work_directory}/{job.id}.pkl'
         execute_path = f'{work_directory}/{job.id}.py'
@@ -195,11 +214,6 @@ with open( "{result_path}", 'wb' ) as res_file:
             execute_path = f'{worker_mount_directory}/{job.id}.py'
             func_obj_path = f'{worker_mount_directory}/{job.id}.pkl'
             result_path = f'{worker_mount_directory}/{job.id}_out.pkl'
-        # if( self.job_ex.name == 'pjsub' ):
-        #     func_obj_path = f'/vol0003/mdt0{func_obj_path}'
-        #     result_path = f'/vol0003/mdt0{result_path}'
-
-        # job = self.make_job( work_directory )
 
         job.spec = self.config_spec( arguments = [ execute_path ], **job_spec )
 
@@ -216,12 +230,19 @@ with open( "{result_path}", 'wb' ) as res_file:
 
         return job
 
+    # Wait and read the result after the job is finished
+    # parameters:
+    # - job, PSI/J job object, PSI/J job object that need a results
+    # Return: results value(Any)
     def wait_for_results( self, job ):
         status = job.wait()
-        # print( status )
         results = self.load_results( job.id )
         return results
 
+    # Read the result from file
+    # parameters:
+    # - job_id, str, Job ID
+    # Return: dict[ results, error ]
     def load_results( self, job_id ):
         with open( f'{self.work_directory}/{job_id}_out.pkl', 'rb' ) as f:
             output = pickle.load( f )
