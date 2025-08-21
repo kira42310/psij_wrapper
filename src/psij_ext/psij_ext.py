@@ -41,6 +41,10 @@ class psij_ext:
     # Return: str, python raw source code
     def python_execute_script( self, func_obj_path: str, result_path: str ) -> str:
         return f"""
+import sys
+
+sys.dont_write_bytecode = True
+
 import pickle
 import sys
 
