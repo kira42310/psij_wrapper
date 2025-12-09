@@ -6,6 +6,8 @@ from pathlib import Path
 from datetime import timedelta
 from typing import Optional, Union, Dict
 
+from pathlib import Path
+
 class psij_ext:
 
     # The Init function for the PSI/J wrapper, get the PSI/J instance and set up job executor parameters
@@ -98,6 +100,8 @@ with open( "{result_path}", 'wb' ) as res_file:
     ) -> psij.JobSpec:
         spec = psij.JobSpec()
 
+        spec = psij.ResourceSpecV1()
+
         spec.executable = executable
 
         if arguments != None:
@@ -134,25 +138,25 @@ with open( "{result_path}", 'wb' ) as res_file:
             spec.launcher = launcher
 
         if node_count != None:
-            spec.resource.node_count = node_count
+            spec.resources.node_count = node_count
 
         if process_count != None:
-            spec.resource.process_count = process_count
+            spec.resources.process_count = process_count
 
         if processes_per_node != None:
-            spec.resource.processes_per_node = processes_per_node
+            spec.resources.processes_per_node = processes_per_node
 
         if cpu_cores_per_process != None:
-            spec.resource.cpu_cores_per_process = cpu_cores_per_process
+            spec.resources.cpu_cores_per_process = cpu_cores_per_process
 
         if gpu_cores_per_process != None:
-            spec.resource.gpu_cores_per_process = gpu_cores_per_process
+            spec.resources.gpu_cores_per_process = gpu_cores_per_process
 
         if exclusive_node_use:
-            spec.resource.exclusive_node_use = exclusive_node_use
+            spec.resources.exclusive_node_use = exclusive_node_use
 
         if memory != None:
-            spec.resource.memory = memory
+            spec.resources.memory = memory
 
         if duration != None:
             spec.attributes.duration = duration
@@ -178,11 +182,11 @@ with open( "{result_path}", 'wb' ) as res_file:
     # Return: PSI/J job object
     def submit( 
         self, 
-        executable: str, 
         job_spec: Dict[str, object] 
     ) -> psij.Job:
         job = psij.Job()
         job.spec = self.config_spec( **job_spec )
+        self.job_executor.work_directory = Path( self.work_directory )
         self.job_executor.submit( job )
         return job
 
@@ -230,6 +234,7 @@ with open( "{result_path}", 'wb' ) as res_file:
         with open( execute_path, 'w' ) as f:
             f.write( self.python_execute_script( func_obj_path, result_path ) )
 
+        self.job_executor.work_directory = Path( work_directory )
         self.job_executor.submit( job )
 
         return job
