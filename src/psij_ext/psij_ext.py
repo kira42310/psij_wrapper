@@ -100,7 +100,7 @@ with open( "{result_path}", 'wb' ) as res_file:
     ) -> psij.JobSpec:
         spec = psij.JobSpec()
 
-        spec = psij.ResourceSpecV1()
+        spec.resources = psij.ResourceSpecV1()
 
         spec.executable = executable
 
@@ -177,7 +177,6 @@ with open( "{result_path}", 'wb' ) as res_file:
 
     # This function will submit the job to the job scheduler
     # parameters:
-    # - executation, str, executable/binary/command
     # - job_spec, Dict[ key, value ], Parameters for configure job specification
     # Return: PSI/J job object
     def submit( 
@@ -194,7 +193,6 @@ with open( "{result_path}", 'wb' ) as res_file:
     # parameters:
     # - func_obj, object, Python function object
     # - job_spec, Dict[ key, value ], Parameters for configure job specification
-    # - executable, str, executable/binary/command
     # - args, list, Optional, Parameters for the python function object(For non key-value type)
     # - kwargs, dict, Optional, Parameters for the python function object(For key-value type) 
     # - worker_mount_directory, Path, Optinoal, In case NFS on login node and compute node have different mounting point
@@ -203,7 +201,6 @@ with open( "{result_path}", 'wb' ) as res_file:
         self, 
         func_obj, 
         job_spec: Dict[str, object], 
-        executable: str = 'python',
         args: list[object] = [], 
         kwargs: Dict[str, object] = {},
         worker_mount_directory: Union[str, Path, None] = None 
@@ -225,7 +222,7 @@ with open( "{result_path}", 'wb' ) as res_file:
 
         job.spec = self.config_spec( arguments = [ execute_path ], **job_spec )
 
-        if Path( execute_path ).is_file() or Path( func_obj_path ).is_file:
+        if Path( execute_path ).is_file() or Path( func_obj_path ).is_file():
             Path( execute_path ).unlink( missing_ok=True )
             Path( func_obj_path ).unlink( missing_ok=True )
 
